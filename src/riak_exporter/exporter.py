@@ -70,6 +70,28 @@ class MetricsHandler(RequestHandler):
                 prom_str = "riak_{} {}".format(key, prom_value)
                 yield prom_str
 
+    def parse_riak_repl_stats_data(self, riak_repl_stats_data):
+        """
+        Filter key/values pairs from collected Riak repl stats, which may be meaningful for Prometheus.
+
+        :param riak_repl_stats_data: Collected Riak repl stats object.
+        :type riak_repl_stats_data: dict
+        :return: Generator of metrics that can be put into Prometheus snapshot.
+        """
+        for key, value in riak_repl_stats_data.items():
+            if isinstance(value, (int, float, bool)):
+                prom_value = float(value)
+                prom_str = "riak_repl_{} {}".format(key, prom_value)
+                yield prom_str
+
+            if key == "fullsync_coordinator":
+                for cluster in value:
+                    for ckey, cvalue in value[cluster].items():
+                        if isinstance(cvalue, (int, float, bool)):
+                            prom_value = float(cvalue)
+                            prom_str = "riak_repl_{}{{cluster=\"{}\"}} {}".format(ckey, cluster, prom_value)
+                            yield prom_str
+
     @coroutine
     def get(self):
         """
@@ -78,7 +100,10 @@ class MetricsHandler(RequestHandler):
         :return: Reponse with prometheus metrics snapshot
         """
         riak_stats_data = yield self.fetch_riak_stats(self.application.riak_stats)
-        prometheus = "\n".join(self.parse_riak_stats_data(riak_stats_data)) + "\n"
+        riak_repl_stats_data = yield self.fetch_riak_stats(self.application.riak_repl_stats)
+        prometheus_stats = "\n".join(self.parse_riak_stats_data(riak_stats_data))
+        prometheus_repl_stats = "\n".join(self.parse_riak_repl_stats_data(riak_repl_stats_data))
+        prometheus = prometheus_stats + "\n" + prometheus_repl_stats + "\n"
         self.set_header("Content-Type", "text/plain")
         self.write(prometheus)
 
@@ -89,12 +114,14 @@ class RiakExporterServer(object):
     """
 
     DEFAULT_RIAK_STATS = "http://localhost:8098/stats"
+    DEFAULT_RIAK_REPL_STATS = "http://localhost:8098/riak-repl/stats"
     DEFAULT_HOST = "0.0.0.0"
     DEFAULT_PORT = 8097
     DEFAULT_ENDPOINT = r"/metrics"
 
-    def __init__(self, riak_stats=None, address=None, port=None, endpoint=None):
+    def __init__(self, riak_stats=None, riak_repl_stats=None, address=None, port=None, endpoint=None):
         self._riak_stats = riak_stats or self.DEFAULT_RIAK_STATS
+        self._riak_repl_stats = riak_repl_stats or self.DEFAULT_RIAK_REPL_STATS
         self._address = address or self.DEFAULT_HOST
         self._port = port or self.DEFAULT_PORT
         self._endpoint = endpoint or self.DEFAULT_ENDPOINT
@@ -105,11 +132,13 @@ class RiakExporterServer(object):
             (self._endpoint, MetricsHandler),
         ])
         app.riak_stats = self._riak_stats
+        app.riak_repl_stats = self._riak_repl_stats
         return app
 
     def print_info(self):
         print("Starting exporter on http://%s:%s%s" % (self._address, self._port, self._endpoint))
         print("Fetching stats from Riak at %s" % self._riak_stats)
+        print("Fetching repl stats from Riak at %s" % self._riak_repl_stats)
         print("Press Ctrl+C to quit")
 
     def run(self):
