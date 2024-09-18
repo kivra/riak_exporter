@@ -89,8 +89,24 @@ class MetricsHandler(RequestHandler):
                     for ckey, cvalue in value[cluster].items():
                         if isinstance(cvalue, (int, float, bool)):
                             prom_value = float(cvalue)
-                            prom_str = "riak_repl_{}{{cluster=\"{}\"}} {}".format(ckey, cluster, prom_value)
+                            prom_str = "riak_repl_fullsync_coordinator_{}{{cluster=\"{}\"}} {}".format(ckey, cluster, prom_value)
                             yield prom_str
+
+            if key == "realtime_queue_stats":
+                for rkey, rvalue in value.items():
+                    if isinstance(rvalue, (int, float, bool)):
+                        prom_value = float(rvalue)
+                        prom_str = "riak_repl_realtime_queue_stats_{} {}".format(rkey, prom_value)
+                        yield prom_str
+
+                    if rkey == "consumers":
+                        for cluster in rvalue:
+                            for ckey, cvalue in value[cluster].items():
+                                if isinstance(cvalue, (int, float, bool)):
+                                    prom_value = float(cvalue)
+                                    prom_str = "riak_repl_realtime_queue_stats_consumers_{}{{cluster=\"{}\"}} {}".format(rkey, cluster, prom_value)
+                                    yield prom_str
+
 
     @coroutine
     def get(self):
