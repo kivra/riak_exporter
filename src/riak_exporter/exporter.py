@@ -101,10 +101,10 @@ class MetricsHandler(RequestHandler):
 
                     if rkey == "consumers":
                         for cluster in rvalue:
-                            for ckey, cvalue in value[cluster].items():
+                            for ckey, cvalue in rvalue[cluster].items():
                                 if isinstance(cvalue, (int, float, bool)):
                                     prom_value = float(cvalue)
-                                    prom_str = "riak_repl_realtime_queue_stats_consumers_{}{{cluster=\"{}\"}} {}".format(rkey, cluster, prom_value)
+                                    prom_str = "riak_repl_realtime_queue_stats_consumers_{}{{cluster=\"{}\"}} {}".format(ckey, cluster, prom_value)
                                     yield prom_str
 
 
