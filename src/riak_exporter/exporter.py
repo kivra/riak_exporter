@@ -46,7 +46,7 @@ class MetricsHandler(RequestHandler):
 
         data = self.DEFAULT_DATA
         try:
-            response = yield self._client.fetch(riak_stats, request_timeout=self.RIAK_REQUEST_TIMEOUT)
+            response = yield self._client.fetch(riak_stats, request_timeout=self.RIAK_REQUEST_TIMEOUT, validate_cert=False)
             data = json_decode(response.body)
         except (HTTPError, Exception) as e:
             app_log.error("Error fetching data from Riak", exc_info=True)
