@@ -129,8 +129,8 @@ class RiakExporterServer(object):
     Basic server implementation that exposes metrics to Prometheus fetcher.
     """
 
-    DEFAULT_RIAK_STATS = "http://localhost:8098/stats"
-    DEFAULT_RIAK_REPL_STATS = "http://localhost:8098/riak-repl/stats"
+    DEFAULT_RIAK_STATS = "https://localhost:8098/stats"
+    DEFAULT_RIAK_REPL_STATS = "https://localhost:8098/riak-repl/stats"
     DEFAULT_HOST = "0.0.0.0"
     DEFAULT_PORT = 8097
     DEFAULT_ENDPOINT = r"/metrics"
