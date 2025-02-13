@@ -46,7 +46,7 @@ class MetricsHandler(RequestHandler):
 
         data = self.DEFAULT_DATA
         try:
-            response = yield self._client.fetch(riak_stats, request_timeout=self.RIAK_REQUEST_TIMEOUT)
+            response = yield self._client.fetch(riak_stats, request_timeout=self.RIAK_REQUEST_TIMEOUT, validate_cert=False)
             data = json_decode(response.body)
         except (HTTPError, Exception) as e:
             app_log.error("Error fetching data from Riak", exc_info=True)
@@ -129,8 +129,8 @@ class RiakExporterServer(object):
     Basic server implementation that exposes metrics to Prometheus fetcher.
     """
 
-    DEFAULT_RIAK_STATS = "http://localhost:8098/stats"
-    DEFAULT_RIAK_REPL_STATS = "http://localhost:8098/riak-repl/stats"
+    DEFAULT_RIAK_STATS = "https://localhost:8098/stats"
+    DEFAULT_RIAK_REPL_STATS = "https://localhost:8098/riak-repl/stats"
     DEFAULT_HOST = "0.0.0.0"
     DEFAULT_PORT = 8097
     DEFAULT_ENDPOINT = r"/metrics"
