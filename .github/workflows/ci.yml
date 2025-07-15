@@ -1,0 +1,40 @@
+---
+name: ci
+
+on:
+  # for feature branches
+  pull_request:
+
+concurrency:
+  group: ${{ (github.ref != 'refs/heads/master') && format('{0}-{1}', github.ref, github.workflow) || github.run_id }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
+
+jobs:
+  ci:
+    name: ci
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4.2.2
+
+      - uses: docker/setup-buildx-action@v3.11.1
+
+      - run: |
+          IMAGE_NAME=riak_exporter:latest
+          CONTAINER_NAME=riak_exporter
+          PPORT=8097
+
+          docker buildx build . --load --tag "${IMAGE_NAME}"
+          docker run --detach --rm --name "${CONTAINER_NAME}" -p "${PPORT}":8097 "${IMAGE_NAME}"
+
+          sleep 5
+
+          METRICS=$(curl localhost:"${PPORT}")
+          EXPECTED="<a href=\"/metrics\">/metrics</a>"
+          if [[ "${METRICS}" != "${EXPECTED}" ]]; then
+            echo "curl returned ${METRICS}, but we expected ${EXPECTED}!"
+            exit 1
+          else
+            docker stop "${CONTAINER_NAME}"
+            echo "All good!"
+          fi
