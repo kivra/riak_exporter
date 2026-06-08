@@ -1,8 +1,5 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "forkProcessing": "enabled",
-  "extends": [
-    "config:best-practices",
-    ":disableDigestUpdates"
-  ]
+  "extends": ["github>kivra/platform-ci//renovate/platform.json5#renovate/v1.0.0"]
 }
