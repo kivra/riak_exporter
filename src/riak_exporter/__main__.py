@@ -16,6 +16,8 @@ def main():
     parser.add_argument('--address', dest='address', help='address to serve on')
     parser.add_argument('--port', dest='port', help='port to bind')
     parser.add_argument('--endpoint', dest='endpoint', help='Prometheus metrics endpoint location')
+    parser.add_argument('--riak-user', dest='riak_user', help='Riak user to use for the API requests (optional)')
+    parser.add_argument('--riak-user-pass', dest='riak_user_pass', help='Riak user password to use for the API requests (optional)')
     args = parser.parse_args()
 
     # Run exposing server
