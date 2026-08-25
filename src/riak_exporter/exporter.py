@@ -33,11 +33,14 @@ class MetricsHandler(RequestHandler):
         self._client = AsyncHTTPClient()
 
     @coroutine
-    def fetch_riak_stats(self, riak_stats):
+    def fetch_riak_stats(self, riak_stats, use_auth=False, auth_user=None, auth_pass=None):
         """
         Fetch Riak stats endpoint, deserialize JSON and return as Python dict.
 
         :param riak_stats: Riak stats endpoint address, accessible by http.
+        :param use_auth: Whether to use HTTP authentication
+        :param auth_user: User to use for HTTP auth if enabled
+        :param auth_pass: Password to use for HTTP auth if enabled
         :rtype: dict
         :return: Riak stats data
         """
@@ -46,7 +49,12 @@ class MetricsHandler(RequestHandler):
 
         data = self.DEFAULT_DATA
         try:
-            response = yield self._client.fetch(riak_stats, request_timeout=self.RIAK_REQUEST_TIMEOUT, validate_cert=False)
+            if use_auth:
+                response = yield self._client.fetch(riak_stats, request_timeout=self.RIAK_REQUEST_TIMEOUT, validate_cert=False,
+                                                    auth_username=auth_user, auth_password=auth_pass)
+            else:
+                response = yield self._client.fetch(riak_stats, request_timeout=self.RIAK_REQUEST_TIMEOUT, validate_cert=False)
+
             data = json_decode(response.body)
         except (HTTPError, Exception) as e:
             app_log.error("Error fetching data from Riak", exc_info=True)
@@ -115,8 +123,11 @@ class MetricsHandler(RequestHandler):
 
         :return: Reponse with prometheus metrics snapshot
         """
-        riak_stats_data = yield self.fetch_riak_stats(self.application.riak_stats)
-        riak_repl_stats_data = yield self.fetch_riak_stats(self.application.riak_repl_stats)
+        riak_stats_data = yield self.fetch_riak_stats(self.application.riak_stats, self.application.stats_auth_enabled,
+                                                      self.application.stats_user, self.application.stats_user_pass)
+        riak_repl_stats_data = yield self.fetch_riak_stats(self.application.riak_repl_stats, self.application.stats_auth_enabled,
+                                                           self.application.stats_user, self.application.stats_user_pass)
+
         prometheus_stats = "\n".join(self.parse_riak_stats_data(riak_stats_data))
         prometheus_repl_stats = "\n".join(self.parse_riak_repl_stats_data(riak_repl_stats_data))
         prometheus = prometheus_stats + "\n" + prometheus_repl_stats + "\n"
@@ -135,12 +146,21 @@ class RiakExporterServer(object):
     DEFAULT_PORT = 8097
     DEFAULT_ENDPOINT = r"/metrics"
 
-    def __init__(self, riak_stats=None, riak_repl_stats=None, address=None, port=None, endpoint=None):
+    def __init__(self, riak_stats=None, riak_repl_stats=None, address=None, port=None,
+                 endpoint=None, riak_user=None, riak_user_pass=None):
         self._riak_stats = riak_stats or self.DEFAULT_RIAK_STATS
         self._riak_repl_stats = riak_repl_stats or self.DEFAULT_RIAK_REPL_STATS
         self._address = address or self.DEFAULT_HOST
         self._port = port or self.DEFAULT_PORT
         self._endpoint = endpoint or self.DEFAULT_ENDPOINT
+
+        ## If a user is provided, auth is enabled
+        self._stats_auth_enabled = False
+        if riak_user:
+            self._stats_auth_enabled = True
+            self._stats_user = riak_user
+            self._stats_user_pass = riak_user_pass
+
 
     def make_app(self):
         app = Application([
@@ -149,6 +169,16 @@ class RiakExporterServer(object):
         ])
         app.riak_stats = self._riak_stats
         app.riak_repl_stats = self._riak_repl_stats
+
+        if self._stats_auth_enabled:
+            app.stats_auth_enabled = True
+            app.stats_user = self._stats_user
+            app.stats_user_pass = self._stats_user_pass
+        else:
+            app.stats_auth_enabled = False
+            app.stats_user = None
+            app.stats_user_pass = None
+
         return app
 
     def print_info(self):
